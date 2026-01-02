@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Clock, Shuffle, Send } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { soundManager } from '../utils/sounds';
 
 type Room = Database['public']['Tables']['rooms']['Row'];
 type Player = Database['public']['Tables']['players']['Row'];
@@ -30,7 +31,33 @@ export function GamePlay({
   const [freeWord, setFreeWord] = useState('');
   const [timeLeft, setTimeLeft] = useState(180);
   const [slots, setSlots] = useState<(WordCard | string | null)[]>([null, null, null]);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const hasPlayedStartSound = useRef(false);
+  const hasPlayedEndSound = useRef(false);
+  const bgmStarted = useRef(false);
 
+  // シンキングタイム開始時の処理
+  useEffect(() => {
+    if (!hasPlayedStartSound.current && room.round_end_time) {
+      // 開始音を再生
+      soundManager.playStartSound();
+      hasPlayedStartSound.current = true;
+
+      // BGMを開始
+      if (!bgmStarted.current) {
+        soundManager.startBGM();
+        bgmStarted.current = true;
+      }
+    }
+
+    // コンポーネントのアンマウント時にBGMを停止
+    return () => {
+      soundManager.stopBGM();
+    };
+  }, [room.round_end_time]);
+
+  // タイマーの処理
   useEffect(() => {
     if (!room.round_end_time) return;
 
@@ -39,6 +66,13 @@ export function GamePlay({
       const now = Date.now();
       const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
       setTimeLeft(remaining);
+
+      // 時間が0になったら終了音を再生
+      if (remaining === 0 && !hasPlayedEndSound.current) {
+        soundManager.playEndSound();
+        soundManager.stopBGM();
+        hasPlayedEndSound.current = true;
+      }
     }, 1000);
 
     return () => clearInterval(timer);
@@ -77,6 +111,43 @@ export function GamePlay({
       newSlots[index] = freeWord;
       setSlots(newSlots);
     }
+  };
+
+  const handleDragStart = (index: number) => {
+    if (hasSubmitted || slots[index] === null) return;
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    if (hasSubmitted || draggedIndex === null) return;
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (hasSubmitted || draggedIndex === null || draggedIndex === targetIndex) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const newSlots = [...slots];
+    const [draggedItem] = newSlots.splice(draggedIndex, 1);
+    newSlots.splice(targetIndex, 0, draggedItem);
+    setSlots(newSlots);
+    
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   const handleSubmit = () => {
@@ -143,15 +214,30 @@ export function GamePlay({
             <p className="text-gray-300 font-medium mb-3">タイトル構築エリア（3つのスロット）</p>
             <div className="grid grid-cols-3 gap-3">
               {slots.map((slot, index) => (
-                <button
+                <div
                   key={index}
+                  draggable={!hasSubmitted && slot !== null}
+                  onDragStart={() => handleDragStart(index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, index)}
+                  onDragEnd={handleDragEnd}
                   onClick={() => handleSlotClick(index)}
-                  disabled={hasSubmitted}
                   className={`h-24 rounded-lg border-2 border-dashed transition-all ${
                     slot
                       ? 'bg-amber-600 border-amber-400 text-white font-bold'
                       : 'bg-gray-700 border-gray-600 text-gray-500'
-                  } ${hasSubmitted ? 'cursor-not-allowed opacity-50' : 'hover:border-amber-500 cursor-pointer'}`}
+                  } ${
+                    hasSubmitted 
+                      ? 'cursor-not-allowed opacity-50' 
+                      : slot !== null
+                      ? 'hover:border-amber-500 cursor-move'
+                      : 'hover:border-amber-500 cursor-pointer'
+                  } ${
+                    dragOverIndex === index ? 'ring-2 ring-amber-300 ring-offset-2' : ''
+                  } ${
+                    draggedIndex === index ? 'opacity-50' : ''
+                  }`}
                 >
                   {slot ? (
                     <div className="text-lg px-2">
@@ -160,7 +246,7 @@ export function GamePlay({
                   ) : (
                     <div className="text-4xl">+</div>
                   )}
-                </button>
+                </div>
               ))}
             </div>
           </div>

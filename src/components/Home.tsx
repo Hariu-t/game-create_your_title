@@ -34,10 +34,10 @@ export function Home({ onCreateRoom, onJoinRoom }: HomeProps) {
               <Sparkles className="w-16 h-16 text-amber-500" />
             </div>
             <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-500 to-amber-600 mb-2">
-              珍卍
+              珍珍
             </h1>
             <p className="text-xl text-gray-400 font-medium">
-              エロスを真面目に考えて、遊べ。
+              至高のエロスで絶頂へ
             </p>
           </div>
 

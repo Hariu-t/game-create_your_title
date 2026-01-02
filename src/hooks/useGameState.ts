@@ -15,6 +15,8 @@ export function useGameState(roomId: string | null, playerId: string | null) {
   const [hand, setHand] = useState<WordCard[]>([]);
   const [currentTheme, setCurrentTheme] = useState<Theme | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [currentVote, setCurrentVote] = useState<{ submission_id: string } | null>(null);
+  const [allVotes, setAllVotes] = useState<{ voter_id: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -69,7 +71,8 @@ export function useGameState(roomId: string | null, playerId: string | null) {
         }
       }
 
-      if (roomData?.current_round && roomData.current_round > 0) {
+      // 現在のラウンドの提出を取得（current_roundが0以上の場合）
+      if (roomData?.current_round !== undefined && roomData.current_round >= 0) {
         const { data: submissionsData } = await supabase
           .from('submissions')
           .select('*, players(*), word_cards!submissions_card1_id_fkey(*), word_cards_card2:word_cards!submissions_card2_id_fkey(*)')
@@ -77,6 +80,36 @@ export function useGameState(roomId: string | null, playerId: string | null) {
           .eq('round_number', roomData.current_round);
 
         setSubmissions(submissionsData as any || []);
+
+        // 現在のプレイヤーの投票を取得
+        if (playerId && roomData.current_round > 0) {
+          const { data: voteData } = await supabase
+            .from('votes')
+            .select('submission_id')
+            .eq('room_id', roomId)
+            .eq('round_number', roomData.current_round)
+            .eq('voter_id', playerId)
+            .maybeSingle();
+
+          setCurrentVote(voteData ? { submission_id: voteData.submission_id } : null);
+        }
+
+        // 全員の投票状況を取得
+        if (roomData.current_round >= 0) {
+          const { data: votesData } = await supabase
+            .from('votes')
+            .select('voter_id')
+            .eq('room_id', roomId)
+            .eq('round_number', roomData.current_round);
+
+          setAllVotes(votesData || []);
+        } else {
+          setAllVotes([]);
+        }
+      } else {
+        // current_roundが未定義の場合は空配列を設定
+        setSubmissions([]);
+        setAllVotes([]);
       }
 
       setLoading(false);
@@ -84,14 +117,20 @@ export function useGameState(roomId: string | null, playerId: string | null) {
 
     fetchRoomData();
 
+    // リアルタイム購読の設定
     const roomChannel = supabase
-      .channel(`room:${roomId}`)
+      .channel(`room:${roomId}`, {
+        config: {
+          broadcast: { self: true }
+        }
+      })
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'rooms',
         filter: `id=eq.${roomId}`
-      }, () => {
+      }, (payload) => {
+        console.log('Room changed:', payload);
         fetchRoomData();
       })
       .on('postgres_changes', {
@@ -99,7 +138,8 @@ export function useGameState(roomId: string | null, playerId: string | null) {
         schema: 'public',
         table: 'players',
         filter: `room_id=eq.${roomId}`
-      }, () => {
+      }, (payload) => {
+        console.log('Player changed:', payload);
         fetchRoomData();
       })
       .on('postgres_changes', {
@@ -107,27 +147,59 @@ export function useGameState(roomId: string | null, playerId: string | null) {
         schema: 'public',
         table: 'submissions',
         filter: `room_id=eq.${roomId}`
-      }, () => {
+      }, (payload) => {
+        console.log('Submission changed:', payload);
         fetchRoomData();
       })
-      .subscribe();
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'votes',
+        filter: `room_id=eq.${roomId}`
+      }, (payload) => {
+        console.log('Vote changed:', payload);
+        fetchRoomData();
+      })
+      .subscribe((status) => {
+        console.log('Room channel subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Successfully subscribed to room changes');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Channel subscription error');
+        } else if (status === 'TIMED_OUT') {
+          console.warn('⚠️ Channel subscription timed out');
+        } else if (status === 'CLOSED') {
+          console.warn('⚠️ Channel closed');
+        }
+      });
+
+    let handChannel: ReturnType<typeof supabase.channel> | null = null;
 
     if (playerId) {
-      const handChannel = supabase
-        .channel(`player_hand:${playerId}`)
+      handChannel = supabase
+        .channel(`player_hand:${playerId}`, {
+          config: {
+            broadcast: { self: true }
+          }
+        })
         .on('postgres_changes', {
           event: '*',
           schema: 'public',
           table: 'player_hands',
           filter: `player_id=eq.${playerId}`
-        }, () => {
+        }, (payload) => {
+          console.log('Player hand changed:', payload);
           fetchRoomData();
         })
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Hand channel subscription status:', status);
+        });
 
       return () => {
         roomChannel.unsubscribe();
-        handChannel.unsubscribe();
+        if (handChannel) {
+          handChannel.unsubscribe();
+        }
       };
     }
 
@@ -143,6 +215,8 @@ export function useGameState(roomId: string | null, playerId: string | null) {
     hand,
     currentTheme,
     submissions,
+    currentVote,
+    allVotes,
     loading
   };
 }

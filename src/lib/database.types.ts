@@ -13,19 +13,16 @@ export interface Database {
         Row: {
           id: string
           word: string
-          category: string
           created_at: string
         }
         Insert: {
           id?: string
           word: string
-          category: string
           created_at?: string
         }
         Update: {
           id?: string
           word?: string
-          category?: string
           created_at?: string
         }
       }
@@ -60,6 +57,8 @@ export interface Database {
           current_round: number
           current_theme_id: string | null
           round_end_time: string | null
+          current_viewing_index: number | null
+          show_all_submissions: boolean | null
           created_at: string
           updated_at: string
         }
@@ -73,6 +72,8 @@ export interface Database {
           current_round?: number
           current_theme_id?: string | null
           round_end_time?: string | null
+          current_viewing_index?: number | null
+          show_all_submissions?: boolean | null
           created_at?: string
           updated_at?: string
         }
@@ -86,6 +87,8 @@ export interface Database {
           current_round?: number
           current_theme_id?: string | null
           round_end_time?: string | null
+          current_viewing_index?: number | null
+          show_all_submissions?: boolean | null
           created_at?: string
           updated_at?: string
         }
