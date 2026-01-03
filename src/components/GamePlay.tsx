@@ -169,7 +169,7 @@ export function GamePlay({
 
   const canSubmit = selectedCards.length === 2 &&
                     freeWord.length > 0 &&
-                    freeWord.length <= 4 &&
+                    freeWord.length <= 5 &&
                     slots.filter(s => s !== null).length === 3 &&
                     !hasSubmitted;
 
@@ -253,28 +253,30 @@ export function GamePlay({
 
           <div className="mb-6">
             <label className="block text-gray-300 font-medium mb-2">
-              フリーワード（4文字以内）
+              フリーワード（5文字以内）
             </label>
             <input
               type="text"
               value={freeWord}
               onChange={(e) => setFreeWord(e.target.value)}
               placeholder="自由に入力"
-              maxLength={4}
+              maxLength={5}
               disabled={hasSubmitted}
               className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-amber-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed text-lg"
             />
-            <p className="text-gray-500 text-sm mt-1">{freeWord.length}/4文字</p>
+            <p className="text-gray-500 text-sm mt-1">{freeWord.length}/5文字</p>
           </div>
 
           <div className="flex space-x-3">
             <button
               onClick={onReloadHand}
-              disabled={hasSubmitted}
-              className="px-6 py-3 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center space-x-2"
+              disabled={hasSubmitted || (currentPlayer.hand_reloaded_round === room.current_round)}
+              className={`px-6 py-3 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center space-x-2 ${
+                currentPlayer.hand_reloaded_round === room.current_round ? 'opacity-50' : ''
+              }`}
             >
               <Shuffle className="w-5 h-5" />
-              <span>手札リロード</span>
+              <span>{currentPlayer.hand_reloaded_round === room.current_round ? 'リロード済み' : '手札リロード'}</span>
             </button>
             <button
               onClick={handleSubmit}

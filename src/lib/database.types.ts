@@ -102,6 +102,7 @@ export interface Database {
           total_votes: number
           is_ready: boolean
           joined_at: string
+          hand_reloaded_round: number | null
         }
         Insert: {
           id?: string
@@ -111,6 +112,7 @@ export interface Database {
           total_votes?: number
           is_ready?: boolean
           joined_at?: string
+          hand_reloaded_round?: number | null
         }
         Update: {
           id?: string
@@ -120,6 +122,7 @@ export interface Database {
           total_votes?: number
           is_ready?: boolean
           joined_at?: string
+          hand_reloaded_round?: number | null
         }
       }
       player_hands: {

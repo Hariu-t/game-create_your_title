@@ -91,17 +91,59 @@ export async function createRoom(hostNickname: string, maxPlayers: number, total
   }
 }
 
+export async function rejoinRoom(roomId: string, playerId: string) {
+  // 既存のプレイヤーとして復帰
+  const { data: room, error: roomError } = await supabase
+    .from('rooms')
+    .select()
+    .eq('id', roomId)
+    .maybeSingle();
+
+  if (roomError) throw roomError;
+  if (!room) throw new Error('Room not found');
+
+  const { data: player, error: playerError } = await supabase
+    .from('players')
+    .select()
+    .eq('id', playerId)
+    .eq('room_id', roomId)
+    .maybeSingle();
+
+  if (playerError) throw playerError;
+  if (!player) throw new Error('Player not found in this room');
+
+  return { room, player };
+}
+
 export async function joinRoom(roomCode: string, nickname: string) {
   const { data: room, error: roomError } = await supabase
     .from('rooms')
     .select()
     .eq('room_code', roomCode.toUpperCase())
-    .eq('status', 'waiting')
     .maybeSingle();
 
   if (roomError) throw roomError;
-  if (!room) throw new Error('Room not found or already started');
+  if (!room) throw new Error('Room not found');
 
+  // 進行中のゲームの場合は、既存のプレイヤーを検索
+  if (room.status !== 'waiting') {
+    // 同じニックネームの既存プレイヤーを検索
+    const { data: existingPlayer } = await supabase
+      .from('players')
+      .select()
+      .eq('room_id', room.id)
+      .eq('nickname', nickname)
+      .maybeSingle();
+
+    if (existingPlayer) {
+      // 既存のプレイヤーとして復帰
+      return { room, player: existingPlayer };
+    } else {
+      throw new Error('Game already started. Please use the same nickname you used when joining.');
+    }
+  }
+
+  // 待機中の部屋の場合のみ新規参加
   const { data: existingPlayers } = await supabase
     .from('players')
     .select('id')
@@ -148,13 +190,30 @@ export async function dealCardsToPlayer(playerId: string, count: number = 8) {
     .insert(cardsToInsert);
 }
 
-export async function reloadPlayerHand(playerId: string) {
+export async function reloadPlayerHand(playerId: string, roomId: string, currentRound: number) {
+  // 現在のラウンドで既にリロードしたかチェック
+  const { data: player } = await supabase
+    .from('players')
+    .select('hand_reloaded_round')
+    .eq('id', playerId)
+    .single();
+
+  if (player && player.hand_reloaded_round === currentRound) {
+    throw new Error('このラウンドでは既に手札をリロードしています');
+  }
+
   await supabase
     .from('player_hands')
     .delete()
     .eq('player_id', playerId);
 
   await dealCardsToPlayer(playerId, 5);
+
+  // リロードしたラウンドを記録
+  await supabase
+    .from('players')
+    .update({ hand_reloaded_round: currentRound })
+    .eq('id', playerId);
 }
 
 export async function startGame(roomId: string) {
@@ -222,8 +281,8 @@ export async function submitAnswer(
   freeWord: string,
   wordOrder: number[]
 ) {
-  if (freeWord.length > 4) {
-    throw new Error('Free word must be 4 characters or less');
+  if (freeWord.length > 5) {
+    throw new Error('Free word must be 5 characters or less');
   }
 
   const { error } = await supabase
@@ -458,6 +517,12 @@ export async function advanceToNextRound(roomId: string) {
     .eq('room_id', roomId);
 
   if (players) {
+    // 全プレイヤーのリロードフラグをリセット
+    await supabase
+      .from('players')
+      .update({ hand_reloaded_round: -1 })
+      .eq('room_id', roomId);
+
     for (const player of players) {
       const { data: handCards } = await supabase
         .from('player_hands')

@@ -12,15 +12,63 @@ import * as gameLogic from './lib/gameLogic';
 type GamePhase = 'home' | 'lobby' | 'theme_selection' | 'countdown' | 'playing' | 'voting' | 'results';
 
 function App() {
+  // localStorageからroomIdとplayerIdを復元
   const [phase, setPhase] = useState<GamePhase>('home');
-  const [roomId, setRoomId] = useState<string | null>(null);
-  const [playerId, setPlayerId] = useState<string | null>(null);
+  const [roomId, setRoomId] = useState<string | null>(() => {
+    const saved = localStorage.getItem('game_roomId');
+    return saved || null;
+  });
+  const [playerId, setPlayerId] = useState<string | null>(() => {
+    const saved = localStorage.getItem('game_playerId');
+    return saved || null;
+  });
   const [error, setError] = useState<string | null>(null);
 
   const { room, players, currentPlayer, hand, currentTheme, submissions, currentVote, allVotes, loading } = useGameState(
     roomId,
     playerId
   );
+
+  // roomIdとplayerIdをlocalStorageに保存
+  useEffect(() => {
+    if (roomId) {
+      localStorage.setItem('game_roomId', roomId);
+    } else {
+      localStorage.removeItem('game_roomId');
+    }
+  }, [roomId]);
+
+  useEffect(() => {
+    if (playerId) {
+      localStorage.setItem('game_playerId', playerId);
+    } else {
+      localStorage.removeItem('game_playerId');
+    }
+  }, [playerId]);
+
+  // アプリ起動時に既存のroomIdとplayerIdで復帰を試みる
+  useEffect(() => {
+    const savedRoomId = localStorage.getItem('game_roomId');
+    const savedPlayerId = localStorage.getItem('game_playerId');
+    
+    if (savedRoomId && savedPlayerId) {
+      // 既存のゲームに復帰を試みる
+      gameLogic.rejoinRoom(savedRoomId, savedPlayerId)
+        .then(({ room, player }) => {
+          setRoomId(room.id);
+          setPlayerId(player.id);
+          // phaseはuseGameStateの結果に基づいて自動的に設定される
+        })
+        .catch((err) => {
+          // 復帰に失敗した場合はlocalStorageをクリア
+          console.log('Failed to rejoin game:', err);
+          localStorage.removeItem('game_roomId');
+          localStorage.removeItem('game_playerId');
+          setRoomId(null);
+          setPlayerId(null);
+        });
+    }
+  }, []);
 
   useEffect(() => {
     if (!room || !currentPlayer) return;
@@ -127,6 +175,9 @@ function App() {
     setRoomId(null);
     setPlayerId(null);
     setPhase('home');
+    // localStorageからも削除
+    localStorage.removeItem('game_roomId');
+    localStorage.removeItem('game_playerId');
   };
 
   const handleSubmitAnswer = async (
@@ -153,10 +204,10 @@ function App() {
   };
 
   const handleReloadHand = async () => {
-    if (!playerId) return;
+    if (!playerId || !room) return;
     try {
       setError(null);
-      await gameLogic.reloadPlayerHand(playerId);
+      await gameLogic.reloadPlayerHand(playerId, room.id, room.current_round);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reload hand');
     }
