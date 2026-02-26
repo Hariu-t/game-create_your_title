@@ -210,10 +210,10 @@ export function Voting({ submissions, currentPlayer, hasVoted, currentVoteSubmis
             </p>
 
             <div className="space-y-3 sm:space-y-4">
-              {allSubmissions.map((submission) => {
+              {allSubmissions.map((submission, index) => {
                 const title = getSubmissionTitle(submission);
                 const isSelected = selectedSubmission === submission.id;
-                const isOwnSubmission = submission.player_id === currentPlayer.id; // 自分の作品かチェック
+                const isOwnSubmission = submission.player_id === currentPlayer.id; // 自分の作品には投票不可（表示は匿名のため誰の作品かは出さない）
 
                 return (
                   <div
@@ -224,22 +224,14 @@ export function Voting({ submissions, currentPlayer, hasVoted, currentVoteSubmis
                         : hasVoted
                         ? 'opacity-50'
                         : 'hover:bg-gray-800'
-                    } ${isOwnSubmission ? 'opacity-60' : ''}`} // 自分の作品は少し薄く表示
+                    }`}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 gap-4">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-2 flex-wrap">
-                          <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                            {submission.players.avatar}
-                          </div>
-                          <span className="text-gray-400 text-sm">
-                            {submission.players.nickname}
+                        <div className="mb-2">
+                          <span className="text-gray-500 text-sm">
+                            作品 {index + 1}
                           </span>
-                          {isOwnSubmission && (
-                            <span className="text-xs bg-gray-700 text-gray-400 px-2 py-1 rounded">
-                              自分の作品
-                            </span>
-                          )}
                         </div>
                         <div className="bg-gradient-to-r from-amber-400 via-orange-500 to-amber-600 bg-clip-text">
                           <h3 className="text-xl sm:text-2xl font-bold text-transparent mb-2 break-words">
@@ -271,7 +263,7 @@ export function Voting({ submissions, currentPlayer, hasVoted, currentVoteSubmis
                         </button>
                         {isOwnSubmission ? (
                           <div className="px-3 sm:px-4 py-2 rounded-lg bg-gray-700 text-gray-500 cursor-not-allowed flex items-center space-x-2 text-sm sm:text-base whitespace-nowrap">
-                            <span>自分の作品</span>
+                            <span>この作品には投票できません</span>
                           </div>
                         ) : (
                           <button
@@ -350,14 +342,6 @@ export function Voting({ submissions, currentPlayer, hasVoted, currentVoteSubmis
           }`}>
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                    {currentSubmission.players.avatar}
-                  </div>
-                  <span className="text-gray-400 text-sm">
-                    {currentSubmission.players.nickname}
-                  </span>
-                </div>
                 <div className="bg-gradient-to-r from-amber-400 via-orange-500 to-amber-600 bg-clip-text">
                   <h3 className="text-2xl font-bold text-transparent mb-2">
                     {title}
