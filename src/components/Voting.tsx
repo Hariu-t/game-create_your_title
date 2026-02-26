@@ -17,6 +17,7 @@ interface VotingProps {
   submissions: Submission[];
   currentPlayer: Player;
   hasVoted: boolean;
+  allPlayersVoted: boolean;
   currentVoteSubmissionId: string | null;
   onVote: (submissionId: string) => void;
   room: Room;
@@ -24,7 +25,7 @@ interface VotingProps {
   onSkipToNextRound?: () => void;
 }
 
-export function Voting({ submissions, currentPlayer, hasVoted, currentVoteSubmissionId, onVote, room, players, onSkipToNextRound }: VotingProps) {
+export function Voting({ submissions, currentPlayer, hasVoted, allPlayersVoted, currentVoteSubmissionId, onVote, room, players, onSkipToNextRound }: VotingProps) {
   const [selectedSubmission, setSelectedSubmission] = useState<string | null>(currentVoteSubmissionId);
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
 
@@ -291,7 +292,9 @@ export function Voting({ submissions, currentPlayer, hasVoted, currentVoteSubmis
             {hasVoted && (
               <div className="mt-4 sm:mt-6 bg-amber-900/30 border border-amber-500/50 rounded-lg p-3 sm:p-4">
                 <p className="text-amber-300 text-center text-sm sm:text-base">
-                  投票完了！他のプレイヤーの投票を待っています...
+                  {allPlayersVoted
+                    ? '投票が確定しました！'
+                    : '投票完了！他のプレイヤーの投票を待っています...'}
                 </p>
               </div>
             )}
@@ -411,7 +414,9 @@ export function Voting({ submissions, currentPlayer, hasVoted, currentVoteSubmis
           {hasVoted && (
             <div className="mt-6 bg-amber-900/30 border border-amber-500/50 rounded-lg p-4">
               <p className="text-amber-300 text-center">
-                投票完了！他のプレイヤーの投票を待っています...
+                {allPlayersVoted
+                  ? '投票が確定しました！'
+                  : '投票完了！他のプレイヤーの投票を待っています...'}
               </p>
             </div>
           )}

@@ -377,24 +377,20 @@ export async function castVote(
 
   if (voteError) throw voteError;
 
-  const { error: submissionError } = await supabase
-    .rpc('increment', {
-      row_id: submissionId,
-      x: 1
-    } as any)
-    .then(() =>
-      supabase
-        .from('submissions')
-        .select('votes_received')
-        .eq('id', submissionId)
-        .single()
-    )
-    .then(({ data }) =>
-      supabase
-        .from('submissions')
-        .update({ votes_received: (data?.votes_received || 0) + 1 })
-        .eq('id', submissionId)
-    );
+  // 投票先の提出の得票数を1増やす
+  const { data: submissionRow } = await supabase
+    .from('submissions')
+    .select('votes_received')
+    .eq('id', submissionId)
+    .single();
+
+  if (submissionRow) {
+    const { error: submissionUpdateError } = await supabase
+      .from('submissions')
+      .update({ votes_received: (submissionRow.votes_received ?? 0) + 1 })
+      .eq('id', submissionId);
+    if (submissionUpdateError) throw submissionUpdateError;
+  }
 
   const { data: submission } = await supabase
     .from('submissions')
@@ -416,34 +412,16 @@ export async function castVote(
         .eq('id', submission.player_id);
     }
   }
+  // 結果画面への遷移はクライアント側で全員の投票を確認してから行う（再投票時に誤って遷移しないため）
+}
 
-  // 投票後、全員の投票が完了しているかチェック
-  const { data: allVotes } = await supabase
-    .from('votes')
-    .select('voter_id')
-    .eq('room_id', roomId)
-    .eq('round_number', roundNumber);
+export async function setRoomStatusToResults(roomId: string) {
+  const { error } = await supabase
+    .from('rooms')
+    .update({ status: 'results' })
+    .eq('id', roomId);
 
-  const { data: players } = await supabase
-    .from('players')
-    .select('id')
-    .eq('room_id', roomId);
-
-  if (players && allVotes) {
-    const allPlayersVoted = players.length > 0 && 
-      allVotes.length === players.length &&
-      players.every((p) => allVotes.some((v) => v.voter_id === p.id));
-
-    if (allPlayersVoted) {
-      // 全員の投票が完了したら、room.statusを'results'に更新
-      await supabase
-        .from('rooms')
-        .update({ status: 'results' })
-        .eq('id', roomId);
-      
-      console.log('All players voted, room status updated to results');
-    }
-  }
+  if (error) throw error;
 }
 
 export async function updateViewingIndex(roomId: string, index: number) {

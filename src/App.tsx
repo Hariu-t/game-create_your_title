@@ -82,24 +82,37 @@ function App() {
     } else if (room.status === 'playing') {
       // 制限時間が過ぎたかチェック
       const isTimeUp = room.round_end_time && new Date(room.round_end_time).getTime() <= Date.now();
-      
-      if (isTimeUp) {
-        // 制限時間が過ぎたら投票画面に遷移（全員の回答を待たない）
-        setPhase('voting');
-        return;
-      }
-
       const currentRoundSubmissions = submissions.filter((s) => s.round_number === room.current_round);
       const playerSubmission = currentRoundSubmissions.find(
         (s) => s.player_id === currentPlayer.id
       );
-
       const allPlayersSubmitted = currentRoundSubmissions.length === players.length;
+      const allPlayersVoted =
+        players.length > 0 &&
+        allVotes.length === players.length &&
+        players.every((p) => allVotes.some((v) => v.voter_id === p.id));
+      const isInVotingPhase = isTimeUp || allPlayersSubmitted || !!playerSubmission;
+
+      if (isTimeUp) {
+        // 制限時間が過ぎたら投票画面に遷移（全員の回答を待たない）
+        setPhase('voting');
+        // 投票フェーズで全員が投票済みなら room を results に更新（クライアント基準で遷移し、再投票時の誤遷移を防ぐ）
+        if (isInVotingPhase && allPlayersVoted && currentRoundSubmissions.length > 0 && roomId) {
+          gameLogic.setRoomStatusToResults(roomId).catch(() => {});
+        }
+        return;
+      }
 
       if (allPlayersSubmitted) {
         setPhase('voting');
+        if (allPlayersVoted && currentRoundSubmissions.length > 0 && roomId) {
+          gameLogic.setRoomStatusToResults(roomId).catch(() => {});
+        }
       } else if (playerSubmission) {
         setPhase('voting');
+        if (allPlayersVoted && currentRoundSubmissions.length > 0 && roomId) {
+          gameLogic.setRoomStatusToResults(roomId).catch(() => {});
+        }
       } else {
         setPhase('playing');
       }
@@ -357,6 +370,10 @@ function App() {
 
   if (phase === 'voting' && room && currentPlayer) {
     const hasVoted = currentVote !== null;
+    const allPlayersVoted =
+      players.length > 0 &&
+      allVotes.length === players.length &&
+      players.every((p) => allVotes.some((v) => v.voter_id === p.id));
 
     // submissionsが未定義の場合は空配列を使用
     const safeSubmissions = submissions || [];
@@ -366,6 +383,7 @@ function App() {
         submissions={safeSubmissions as any}
         currentPlayer={currentPlayer}
         hasVoted={hasVoted}
+        allPlayersVoted={allPlayersVoted}
         currentVoteSubmissionId={currentVote?.submission_id || null}
         onVote={handleVote}
         room={room}
