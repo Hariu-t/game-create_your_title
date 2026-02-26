@@ -370,6 +370,7 @@ function App() {
         onVote={handleVote}
         room={room}
         players={players}
+        onSkipToNextRound={handleNextRound}
       />
     );
   }

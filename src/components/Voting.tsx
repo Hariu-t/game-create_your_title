@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ThumbsUp, Volume2, ArrowRight, List } from 'lucide-react';
+import { ThumbsUp, Volume2, ArrowRight, List, SkipForward } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import { updateViewingIndex, setShowAllSubmissions } from '../lib/gameLogic';
 import { supabase } from '../lib/supabase';
@@ -21,13 +21,17 @@ interface VotingProps {
   onVote: (submissionId: string) => void;
   room: Room;
   players: Player[];
+  onSkipToNextRound?: () => void;
 }
 
-export function Voting({ submissions, currentPlayer, hasVoted, currentVoteSubmissionId, onVote, room, players }: VotingProps) {
+export function Voting({ submissions, currentPlayer, hasVoted, currentVoteSubmissionId, onVote, room, players, onSkipToNextRound }: VotingProps) {
   const [selectedSubmission, setSelectedSubmission] = useState<string | null>(currentVoteSubmissionId);
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
 
   const isHost = room.host_id === currentPlayer.id;
+  
+  // 制限時間が過ぎているか（時間切れなら未提出者を待たずに投票画面を表示）
+  const isTimeUp = !!(room.round_end_time && new Date(room.round_end_time).getTime() <= Date.now());
   
   // データベースから一覧表示モードの状態を取得
   const hasViewedAllSubmissions = room.show_all_submissions ?? false;
@@ -142,8 +146,8 @@ export function Voting({ submissions, currentPlayer, hasVoted, currentVoteSubmis
     }
   };
 
-  // 全員の提出が完了していない場合は待機画面
-  if (!allPlayersSubmitted) {
+  // 全員の提出が完了していない場合、かつ時間切れでない場合のみ待機画面
+  if (!allPlayersSubmitted && !isTimeUp) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4">
         <div className="text-center">
@@ -158,8 +162,27 @@ export function Voting({ submissions, currentPlayer, hasVoted, currentVoteSubmis
     );
   }
 
-  // 全員の提出が完了しているが、allSubmissionsが空の場合は待機
-  // （リアルタイム更新の遅延を考慮）
+  // 時間切れで誰も提出していない場合：次のラウンドへ進む画面
+  if (isTimeUp && allSubmissions.length === 0 && onSkipToNextRound) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <p className="text-gray-400 text-xl mb-4">
+            今ラウンドは誰も回答しませんでした
+          </p>
+          <button
+            onClick={onSkipToNextRound}
+            className="inline-flex items-center gap-2 py-3 px-6 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold rounded-lg transition-all"
+          >
+            <SkipForward className="w-5 h-5" />
+            次のラウンドへ
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 全員の提出が完了しているが、allSubmissionsが空の場合は待機（時間切れでない場合のリアルタイム遅延）
   if (allPlayersSubmitted && allSubmissions.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4">

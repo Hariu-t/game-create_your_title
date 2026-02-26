@@ -36,6 +36,10 @@ export function Results({ room, players, submissions, currentPlayer, onNextRound
   // 現在のラウンドの提出のみを取得
   const currentRoundSubmissions = submissions.filter(s => s.round_number === room.current_round);
   
+  // 今ラウンドで提出がなかったプレイヤー（未回答）
+  const submittedPlayerIds = new Set(currentRoundSubmissions.map(s => s.player_id));
+  const noSubmissionPlayers = players.filter(p => !submittedPlayerIds.has(p.id));
+  
   // 各タイトルの得票数を計算
   const submissionVotes = currentRoundSubmissions.map(submission => ({
     submission,
@@ -130,6 +134,28 @@ export function Results({ room, players, submissions, currentPlayer, onNextRound
               );
             })}
           </div>
+
+          {/* 未回答だったプレイヤー */}
+          {noSubmissionPlayers.length > 0 && (
+            <div className="mt-8">
+              <h3 className="text-xl font-bold text-gray-400 mb-3 text-center">
+                未回答
+              </h3>
+              <div className="bg-gray-900/50 rounded-lg p-4 flex flex-wrap justify-center gap-2">
+                {noSubmissionPlayers.map((player) => (
+                  <span
+                    key={player.id}
+                    className="inline-flex items-center gap-2 bg-gray-800 px-3 py-2 rounded-lg text-gray-400 text-sm"
+                  >
+                    <span className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                      {player.avatar}
+                    </span>
+                    {player.nickname}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* タイトル別得票数一覧 */}
           {submissionVotes.length > 0 && (
