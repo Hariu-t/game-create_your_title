@@ -2,6 +2,7 @@
 
 class SoundManager {
   private bgmAudio: HTMLAudioElement | null = null;
+  private homeBgmAudio: HTMLAudioElement | null = null;
   private startSound: HTMLAudioElement | null = null;
   private endSound: HTMLAudioElement | null = null;
 
@@ -118,6 +119,39 @@ class SoundManager {
     }
   }
 
+  // TOP画面用BGM（ループ再生）
+  startHomeBGM() {
+    try {
+      this.stopHomeBGM();
+      const homeBgmPath = '/sounds/home-bgm.mp3';
+      this.homeBgmAudio = new Audio(homeBgmPath);
+      this.homeBgmAudio.loop = true;
+      this.homeBgmAudio.volume = 0.35;
+      this.homeBgmAudio.play().catch(() => {
+        // home-bgm.mp3 が無い場合は thinking-bgm.mp3 をフォールバック
+        const fallbackPath = '/sounds/thinking-bgm.mp3';
+        this.homeBgmAudio = new Audio(fallbackPath);
+        this.homeBgmAudio!.loop = true;
+        this.homeBgmAudio!.volume = 0.35;
+        this.homeBgmAudio!.play().catch(() => {
+          console.log('TOP用BGMファイルが見つかりません。public/sounds/ に home-bgm.mp3 または thinking-bgm.mp3 を配置してください。');
+          this.homeBgmAudio = null;
+        });
+      });
+    } catch (error) {
+      console.warn('TOP用BGMの再生に失敗しました:', error);
+    }
+  }
+
+  // TOP画面用BGMを停止
+  stopHomeBGM() {
+    if (this.homeBgmAudio) {
+      this.homeBgmAudio.pause();
+      this.homeBgmAudio.currentTime = 0;
+      this.homeBgmAudio = null;
+    }
+  }
+
   // シンキングタイム終了の音
   playEndSound() {
     try {
@@ -171,6 +205,7 @@ class SoundManager {
   // すべての音を停止
   stopAll() {
     this.stopBGM();
+    this.stopHomeBGM();
   }
 }
 

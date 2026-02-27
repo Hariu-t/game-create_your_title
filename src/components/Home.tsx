@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles } from 'lucide-react';
+import { soundManager } from '../utils/sounds';
 
 interface HomeProps {
   onCreateRoom: (nickname: string, maxPlayers: number, totalRounds: number) => void;
@@ -8,6 +9,14 @@ interface HomeProps {
 
 export function Home({ onCreateRoom, onJoinRoom }: HomeProps) {
   const [mode, setMode] = useState<'menu' | 'create' | 'join'>('menu');
+
+  // TOP画面表示中はBGMを再生、離脱時に停止
+  useEffect(() => {
+    soundManager.startHomeBGM();
+    return () => {
+      soundManager.stopHomeBGM();
+    };
+  }, []);
   const [nickname, setNickname] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(4);
