@@ -17,6 +17,20 @@ export function Home({ onCreateRoom, onJoinRoom }: HomeProps) {
       soundManager.stopHomeBGM();
     };
   }, []);
+
+  // 自動再生ブロック対策: 初回のクリック/タッチでBGMを開始
+  useEffect(() => {
+    const startOnInteraction = () => {
+      soundManager.startHomeBGM();
+    };
+    const opts = { once: true, passive: true };
+    document.addEventListener('click', startOnInteraction, opts);
+    document.addEventListener('touchstart', startOnInteraction, opts);
+    return () => {
+      document.removeEventListener('click', startOnInteraction);
+      document.removeEventListener('touchstart', startOnInteraction);
+    };
+  }, []);
   const [nickname, setNickname] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(4);
@@ -68,6 +82,7 @@ export function Home({ onCreateRoom, onJoinRoom }: HomeProps) {
           <div className="text-center text-gray-500 text-sm mt-8">
             <p>3～6人でプレイ</p>
             <p className="mt-2">18歳以上推奨</p>
+            <p className="mt-2 text-gray-600 text-xs">タップでBGMを再生</p>
           </div>
         </div>
       </div>
