@@ -119,25 +119,27 @@ class SoundManager {
     }
   }
 
-  // TOP画面用BGM（ループ再生）
+  // TOP画面用BGM（ループ再生）— .mp3 / .aac に対応
   startHomeBGM() {
     try {
       this.stopHomeBGM();
-      const homeBgmPath = '/sounds/home-bgm.mp3';
-      this.homeBgmAudio = new Audio(homeBgmPath);
-      this.homeBgmAudio.loop = true;
-      this.homeBgmAudio.volume = 0.35;
-      this.homeBgmAudio.play().catch(() => {
-        // home-bgm.mp3 が無い場合は thinking-bgm.mp3 をフォールバック
-        const fallbackPath = '/sounds/thinking-bgm.mp3';
-        this.homeBgmAudio = new Audio(fallbackPath);
-        this.homeBgmAudio!.loop = true;
-        this.homeBgmAudio!.volume = 0.35;
-        this.homeBgmAudio!.play().catch(() => {
-          console.log('TOP用BGMファイルが見つかりません。public/sounds/ に home-bgm.mp3 または thinking-bgm.mp3 を配置してください。');
+      const paths = ['/sounds/home-bgm.mp3', '/sounds/home-bgm.aac', '/sounds/thinking-bgm.mp3', '/sounds/thinking-bgm.aac'];
+      const tryPlay = (index: number) => {
+        if (index >= paths.length) {
+          console.log('TOP用BGMファイルが見つかりません。public/sounds/ に home-bgm.mp3 / home-bgm.aac などを配置してください。');
           this.homeBgmAudio = null;
+          return;
+        }
+        const path = paths[index];
+        this.homeBgmAudio = new Audio(path);
+        this.homeBgmAudio.loop = true;
+        this.homeBgmAudio.volume = 0.35;
+        this.homeBgmAudio.play().then(() => {}).catch(() => {
+          this.homeBgmAudio = null;
+          tryPlay(index + 1);
         });
-      });
+      };
+      tryPlay(0);
     } catch (error) {
       console.warn('TOP用BGMの再生に失敗しました:', error);
     }
